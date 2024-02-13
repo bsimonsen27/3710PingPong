@@ -81,7 +81,7 @@ slower:												; if the switch isn't flipped, the setting is 0.3 s per LED
 ;MAIN 
 ;-------------------------------------------------------
 main:
-			jb 		serve, call_right_serve		; right serves if bit is 1
+			;jb 		serve, call_right_serve		; right serves if bit is 1
 			call 	left_serve								; left serves if bit is 0	
 			cpl 	serve											; toggle bit for next round after left serve								
 move_loop2:
@@ -190,11 +190,10 @@ continue_r:
 		call disp_led									; display the LED
 
 		mov 	A, pos									; move the position into R1
-		mov 	30h, p2_window						; move the player 1 window into R2
+		mov 	30h, p2_window					; move the player 1 window into R2
 
-		cjne  A, 30h, RNOTEQUAL 
-
-		mov 	R6, speed  
+		cjne  A, 30h, RNOTEQUAL 			; compare pos to the window to determine if we are in the window
+		jmp		window_right						; if they are equal, we are in the window
 		call 	speed_delay
 		orl	  A, #80h
 		cjne  A, #80h, move_left
@@ -203,17 +202,15 @@ continue_r:
 		 
 
 RNOTEQUAL:											; If position is less than the window, it isn't in the window
-		JNC RGREATER
-		anl	  A, #80h
-		cjne  A, #80h, move_right
-		mov 	R6, speed
-		call speed_delay
-		sjmp move_left
+		JC RGREATER									; jump if we are greater than the window
+window_right:										; in window, check buttons
+		call speed_delay					; speed_delay will check the buttons
+		mov		A,R7									; move buttons into ACC
+		anl		A,#80h								; mask to get value of right button only
+		cjne	A,#80h,move_right			; check if right button was hit
+		ret
 
-
-RGREATER:	
-
-		
+RGREATER:								; not in window yet, so keep moving right
 		call 	speed_delay
 		call move_right
 		ret
@@ -226,8 +223,11 @@ RGREATER:
 ;-------------------------------------------------------
 ;SPEED DELAY
 ;-------------------------------------------------------
-
+; right button is in P2.7
+; left button is in P2.6
 speed_delay:
+		mov		R6,speed
+speed_loop:
 		orl 	p2, #0Ch		; clear the buttons
 	 	call 	delay  			; call delay 
 		;call 	chk_btn		; call check buttons
@@ -235,12 +235,12 @@ speed_delay:
 		mov a, p2					; mov the buttons into accum
 		cpl a 						; flip the buttons to be possitive logic
 		anl a, #11000000b ; check if the buttons have been pressed
-		mov r7, a					; store it in r7
+		mov r7, a					; store button in r7
 
 
 		;orl 	p2, a			; check to see if buttons have changed
 		;mov 	R7, P2
-		djnz	R6, speed_delay	 
+		djnz	R6, speed_loop	 
 
 
 ;-------------------------------------------------------
@@ -318,4 +318,3 @@ not_nine:	clr p2.1						; turn on LED 10
 					ret									; go back to waiting for a btn
 
 end
-
