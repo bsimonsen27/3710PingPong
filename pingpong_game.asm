@@ -28,6 +28,7 @@ $include (c8051f020.inc)
 	speed:			ds 1		; speed of the ball
 	p1_window:	ds 1 		; window for player 1, left player
 	p2_window:	ds 1		; window for player 2, right player
+	buttons:    ds 1    ; button var
 	;  is the start position
 	bseg 
 	serve: dbit 1
@@ -61,7 +62,7 @@ $include (c8051f020.inc)
 			mov	  R1, p2_window	; move window variable into r1 for subtraction
 			mov		A, #1					; move 4 into accum for subtraction
 			add		A, R1					; 4 - window = the window size
-			mov 	p1_window, A	; store the value in p1_window
+			mov 	p2_window, A	; store the value in p1_window
 
 ;- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
@@ -82,7 +83,7 @@ slower:												; if the switch isn't flipped, the setting is 0.3 s per LED
 ;MAIN 
 ;-------------------------------------------------------
 main:
-			;jb 		serve, call_right_serve		; right serves if bit is 1
+			jb 		serve, call_right_serve		; right serves if bit is 1
 			call 	left_serve								; left serves if bit is 0	
 			cpl 	serve											; toggle bit for next round after left serve								
 move_loop2:
@@ -145,33 +146,30 @@ move_left:
 continue_l:
 		call disp_led									; display the LED
 
-		
-
-		mov 	A, #11 									; move 11 into accum to compare
-		mov 	R0, p1_window						; mov player 1 window into R0
-		subb	A, R0										; subtract 11 - window
-		mov		R0, A										; store result in R0
 
 		mov 	A, pos									; move the position into R1
-		mov 	30h, p1_window						; move the player 1 window into R2
+		;mov 	30h, p1_window						; move the player 1 window into R2
 
-		cjne  A, 30h, LNOTEQUAL   
+		cjne  A, p1_window, LNOTEQUAL   
 		call 	speed_delay
-		mov 	A, R7
+		mov 	A, buttons
 		anl	  A, #40h
 		cjne  A, #40h, move_left
 		ret
 
 
-LNOTEQUAL:											; If position is less than the window, it isn't in the window
-		call 	speed_delay
-		anl	  A, #40h
-		cjne  A, #40h, move_left
-		ret
-LGREATER:	
-		JC LGREATER
+LNOTEQUAL:
+JNC LGREATER											; If position is less than the window, it isn't in the window
 		call speed_delay
 		sjmp move_left
+LGREATER:	
+		
+		call 	speed_delay
+		mov		A, buttons
+		anl	  A, #40h
+		cjne  A, #40h, move_left
+		ret
+		
 
 											; If position is greater than window, then it is in the window
 	
@@ -193,13 +191,14 @@ continue_r:
 		call disp_led									; display the LED
 
 		mov 	A, pos									; move the position into R1
-		mov 	30h, p2_window					; move the player 1 window into R2
+		;mov 	30h, p2_window					; move the player 1 window into R2
 
-		cjne  A, 30h, RNOTEQUAL 			; compare pos to the window to determine if we are in the window
-		jmp		window_right						; if they are equal, we are in the window
+		cjne  A, p2_window, RNOTEQUAL 			; compare pos to the window to determine if we are in the window
+		;jmp		window_right						; if they are equal, we are in the window
 		call 	speed_delay
-		orl	  A, #80h
-		cjne  A, #80h, move_left
+		mov		A, buttons	
+		anl	  A, #80h
+		cjne  A, #80h, move_right
 		ret
 
 		 
@@ -207,21 +206,22 @@ continue_r:
 RNOTEQUAL:											; If position is less than the window, it isn't in the window
 		JC RGREATER									; jump if we are greater than the window
 window_right:										; in window, check buttons
+		
+
 		call 	speed_delay
-		call move_right
+		call  move_right
 		ret
+													; If position is greater than window, then it is in the windo
 
 RGREATER:
 
-call speed_delay					; speed_delay will check the buttons
-		mov		A,R7									; move buttons into ACC
+		call speed_delay	
+		mov		A, buttons					; speed_delay will check the button								; move buttons into ACC
 		anl		A,#80h								; mask to get value of right button only
 		cjne	A,#80h,move_right			; check if right button was hit
 		ret								; not in window yet, so keep moving right
 		
-													; If position is greater than window, then it is in the window
 		
-
 
 
 
@@ -232,23 +232,17 @@ call speed_delay					; speed_delay will check the buttons
 ; left button is in P2.6
 speed_delay:
 		mov		R6,speed
+		mov 	buttons, #0
 speed_loop:
-		orl 	p2, #0Ch		; clear the buttons
+		orl 	p2, #0Ch		; clear the LED's
 	 	call 	delay  			; call delay 
-		;call 	chk_btn		; call check buttons
+		call 	chk_btn		; call check buttons
+		orl   buttons, A;
 
-		mov a, p2					; mov the buttons into accum
-		cpl a 						; flip the buttons to be possitive logic
-		anl a, #11000000b ; check if the buttons have been pressed
-		mov r7, a					; store button in r7
-
-
-		;orl 	p2, a			; check to see if buttons have changed
-		;mov 	R7, P2
 		djnz	R6, speed_loop	 
 
 
-;-------------------------------------------------------
+;--------------------------------------------------------
 ;10 mS DELAY  still need to calculate
 ;-------------------------------------------------------
 delay:	
