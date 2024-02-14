@@ -67,33 +67,40 @@ $include (c8051f020.inc)
 ;- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
 			mov		A,P1	
-			anl		A,#10h						; mask the speed switche
+			anl		A,#10h
+			;swap  A						; mask the speed switche
+			
 			mov		speed,A						; speed holds switch value 5
-
+			
 			mov		A, #30						; moving 300 into accum 30 ms * 10 ms = 0.3 seconds per LED
 			mov 	R1, speed					; move speed into R1 to compare.
-			cjne	R1, #1, slower 		; if switch is flipped continue to setup faster speed
-			rr		A									; divide 30 / 2 so that speed is 0.15 s
+			cjne	R1, #0, faster 		; if switch is flipped continue to setup faster speed
+												; divide 30 / 2 so that speed is 0.15 s
 			mov		speed, A					; store value in speed
-
-slower:												; if the switch isn't flipped, the setting is 0.3 s per LED
+			rr		A
+faster:	
+														; if the switch isn't flipped, the setting is 0.3 s per LED
 			mov speed, A
+			
 			
 
 ;MAIN 
 ;-------------------------------------------------------
 main:
 			jb 		serve, call_right_serve		; right serves if bit is 1
+			cpl 	serve
 			call 	left_serve								; left serves if bit is 0	
-			cpl 	serve											; toggle bit for next round after left serve								
+														; toggle bit for next round after left serve								
 move_loop2:
+			
 			call move_right									; move right after serve
 			call move_left
 			sjmp move_loop2  							
 
 call_right_serve:
+			cpl 	serve
 			call 	right_serve
-			cpl 	serve									; toggle bit for next round after left serve				
+										; toggle bit for next round after left serve				
 move_loop1:
 			call 	move_left									;move left after serve
 			call move_right
@@ -101,7 +108,31 @@ move_loop1:
 			
 
 end_game:		
-			call end_game
+			
+
+ 
+					
+			mov R7, #50					;set for a 
+game_over_loop:
+
+			mov a, p2
+			cpl a
+			mov p2, a
+					
+			mov a, p3
+			cpl a
+			mov p3, a
+
+			call delay_end
+			djnz R7, game_over_loop
+			jmp end_game
+
+delay_end:mov r6, #255
+delay_1:	mov r5, #255
+delay_2:  djnz r5, delay_2
+					djnz r6, delay_1
+					ret
+
 
 			
 			
