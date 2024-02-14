@@ -26,8 +26,8 @@ $include (c8051f020.inc)
 	old_btn:		ds 1		; old buttons
 	pos: 				ds 1		; position of ping pont ball
 	speed:			ds 1		; speed of the ball
-	p1_window:	ds 1 		; window for player 1
-	p2_window:	ds 1		; window for player 2
+	p1_window:	ds 1 		; window for player 1, left player
+	p2_window:	ds 1		; window for player 2, right player
 	;  is the start position
 	bseg 
 	serve: dbit 1
@@ -46,7 +46,7 @@ $include (c8051f020.inc)
 			mov		p1_window,A		; p1_window holds switch values 1&2
 			
 			mov	  R1, p1_window	; move window variable into r1 for subtraction
-			mov		A, #4					; move 4 into accum for subtraction
+			mov		A, #10					; move 4 into accum for subtraction
 			subb	A, R1					; 4 - window = the window size
 			mov 	p1_window, A	; store the value in p1_window
 
@@ -54,11 +54,13 @@ $include (c8051f020.inc)
 	
 			mov		A,P1
 			anl		A,#12				; mask the p2_window switches
+			rr		A
+			rr 		A
 			mov		p2_window,A	; p2_window holds switch values 3&4
 
 			mov	  R1, p2_window	; move window variable into r1 for subtraction
-			mov		A, #5					; move 4 into accum for subtraction
-			subb	A, R2					; 4 - window = the window size
+			mov		A, #1					; move 4 into accum for subtraction
+			add		A, R1					; 4 - window = the window size
 			mov 	p1_window, A	; store the value in p1_window
 
 ;- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -77,7 +79,6 @@ slower:												; if the switch isn't flipped, the setting is 0.3 s per LED
 			mov speed, A
 			
 
-;-------------------------------------------------------
 ;MAIN 
 ;-------------------------------------------------------
 main:
@@ -163,15 +164,17 @@ continue_l:
 
 
 LNOTEQUAL:											; If position is less than the window, it isn't in the window
-		JC LGREATER
-		call speed_delay
-		sjmp move_left
-
-LGREATER:												; If position is greater than window, then it is in the window
 		call 	speed_delay
 		anl	  A, #40h
 		cjne  A, #40h, move_left
 		ret
+LGREATER:	
+		JC LGREATER
+		call speed_delay
+		sjmp move_left
+
+											; If position is greater than window, then it is in the window
+	
 
 							
 ;-------------------------------------------------------
@@ -204,16 +207,18 @@ continue_r:
 RNOTEQUAL:											; If position is less than the window, it isn't in the window
 		JC RGREATER									; jump if we are greater than the window
 window_right:										; in window, check buttons
-		call speed_delay					; speed_delay will check the buttons
-		mov		A,R7									; move buttons into ACC
-		anl		A,#80h								; mask to get value of right button only
-		cjne	A,#80h,move_right			; check if right button was hit
-		ret
-
-RGREATER:								; not in window yet, so keep moving right
 		call 	speed_delay
 		call move_right
 		ret
+
+RGREATER:
+
+call speed_delay					; speed_delay will check the buttons
+		mov		A,R7									; move buttons into ACC
+		anl		A,#80h								; mask to get value of right button only
+		cjne	A,#80h,move_right			; check if right button was hit
+		ret								; not in window yet, so keep moving right
+		
 													; If position is greater than window, then it is in the window
 		
 
