@@ -24,7 +24,7 @@ $include (c8051f020.inc)
 	; declaring variables
 	dseg at 30h
 	old_btn:		ds 1		; old buttons
-	pos: 				ds 1		; position of ping pont ball
+	pos: 				ds 1		; position of ping pong ball
 	speed:			ds 1		; speed of the ball
 	p1_window:	ds 1 		; window for player 1, left player
 	p2_window:	ds 1		; window for player 2, right player
@@ -39,11 +39,17 @@ $include (c8051f020.inc)
 	mov			xbr2,#40H		; activate I/O ports
 ;------------------------------------------------------
 ;INITIALIZATION SEQUENCE 
+; Inputs: Switches on P1 
+; Outputs: Window ranges stored in variables p1_window and p2_window
+; 				 Speed of the game stored in variable speed
+;
+; Description: This portion of the code with initiate the values
+; for the player windows and speed of the game.
 ;------------------------------------------------------
 
 	
 			mov		A,P1					; Switches moved to accumulator
-			anl		A,#3					;	mask the last 
+			anl		A,#3					;	mask the last 2 bits 0000 0011
 			mov		p1_window,A		; p1_window holds switch values 1&2
 			
 			mov	  R1, p1_window	; move window variable into r1 for subtraction
@@ -54,10 +60,10 @@ $include (c8051f020.inc)
 ;- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
 	
 			mov		A,P1
-			anl		A,#12				; mask the p2_window switches
+			anl		A,#12					; mask the p2_window switches
 			rr		A
 			rr 		A
-			mov		p2_window,A	; p2_window holds switch values 3&4
+			mov		p2_window,A		; p2_window holds switch values 3&4
 
 			mov	  R1, p2_window	; move window variable into r1 for subtraction
 			mov		A, #1					; move 4 into accum for subtraction
@@ -83,8 +89,18 @@ faster:
 			mov speed, A
 			
 			
-
-;MAIN 
+;-------------------------------------------------------
+;MAIN
+;
+;	Input:
+;	Value of the bit stored in 'serve' location of memory
+;
+;	Output:
+;	The initial direction the 'ball' will move
+;
+; DESCRIPTION:
+;	This portion of the code determines the who will be serving
+; based on the bit stored in the memory location of serve
 ;-------------------------------------------------------
 main:
 			jb 		serve, call_right_serve		; right serves if bit is 1
@@ -138,6 +154,17 @@ delay_2:  djnz r5, delay_2
 			
 ;-------------------------------------------------------
 ;RIGHT_SERVE
+;
+;	Input:
+;	Right button stored on P2.7
+;
+;	Output:
+;	Begins the game
+;
+; DESCRIPTION:
+;	Waits for the right button to be pressed then moves to
+; another subroutine to serve the ball
+;
 ;-------------------------------------------------------
 right_serve:	
 			mov		pos, #1					;set the position to the very right
@@ -151,6 +178,17 @@ wait_r:											;wait until button has been pressed to move on
 
 ;-------------------------------------------------------
 ;LEFT_SERVE
+;
+;	Input:
+;	The left button stored on P2.6
+;
+;	Output:
+;	Begins the game
+;
+; DESCRIPTION:
+; Waits for the left button to be pressed to move to another
+; subroutine to serve the ball.
+;
 ;-------------------------------------------------------
 left_serve:
 			mov		pos, #10				;set the position to the very left
@@ -163,6 +201,14 @@ wait_l:											;wait until button has been pressed to move on
 
 ;-------------------------------------------------------
 ;MOVE LEFT
+;
+; DESCRIPTION:
+;	This subroutine will first check if the game is over
+; by looking at the location of the ball. Then checks if 
+; the ball is in the p1_window. If so, it will check the 
+; left button to determine if the ball should be rebounded 
+; back or if it should continue moving left. 
+;
 ;-------------------------------------------------------
 move_left:
 		inc pos												; move pos left
@@ -207,7 +253,16 @@ LGREATER:
 
 							
 ;-------------------------------------------------------
-;MOVE RIGHT
+;MOVE RIGHT.
+;
+; DESCRIPTION:
+;	This subroutine will first check if the game is over
+; by looking at the location of the ball. Then checks if 
+; the ball is in the p2_window. If so, it will check 
+; the right button to determine if the ball should be 
+; rebounded back or if it should continue
+; moving right. 
+;
 ;-------------------------------------------------------
 move_right:												
 		
@@ -258,6 +313,13 @@ RGREATER:
 
 ;-------------------------------------------------------
 ;SPEED DELAY
+;
+; DESCRIPTION:
+; This function takes in the value stored on the 'speed'
+; variable which come from switch 5. This determines the
+; speed at which the ball will travel. It also checks the 
+; buttons every 10 ms.
+;
 ;-------------------------------------------------------
 ; right button is in P2.7
 ; left button is in P2.6
@@ -267,14 +329,17 @@ speed_delay:
 speed_loop:
 		orl 	p2, #0Ch		; clear the LED's
 	 	call 	delay  			; call delay 
-		call 	chk_btn		; call check buttons
-		orl   buttons, A;
+		call 	chk_btn			; call check buttons
+		orl   buttons, A
 
 		djnz	R6, speed_loop	 
 
 
 ;--------------------------------------------------------
 ;10 mS DELAY  still need to calculate
+;
+; DESCRIPTION:
+;
 ;-------------------------------------------------------
 delay:	
 		mov		R1,#25			; delay 15ms based off 1us machine cycle
@@ -288,6 +353,11 @@ loop2:
 
 ;-------------------------------------------------------
 ;CHECK_BUTTON
+;
+; DESCRIPTION:
+; Checks if the buttons have been pressed. Has code to 
+; protect against the button being held down. 
+;
 ;-------------------------------------------------------
 ; dont need
 chk_btn:	mov A,P2
@@ -300,6 +370,18 @@ chk_btn:	mov A,P2
 
 ;-------------------------------------------------------
 ;DISPLAY_LED
+;
+;	Input:
+;	The value stored in the variable 'pos'
+;
+;	Output:
+;	The LED that will turn to represent the ball's location
+;
+; DESCRIPTION:
+;	This subroutine will turn off all the LEDs then compares 
+; the value stored in 'pos' variable to determine what LED
+; should be turned on.
+;
 ;-------------------------------------------------------
 
 ; Display led's
