@@ -81,7 +81,7 @@ $include (c8051f020.inc)
 			mov		A, #30						; moving 300 into accum 30 ms * 10 ms = 0.3 seconds per LED
 			mov 	R1, speed					; move speed into R1 to compare.
 			cjne	R1, #0, faster 		; if switch is flipped continue to setup faster speed
-												; divide 30 / 2 so that speed is 0.15 s
+															; divide 30 / 2 so that speed is 0.15 s
 			mov		speed, A					; store value in speed
 			rr		A
 faster:	
@@ -106,31 +106,42 @@ main:
 			jb 		serve, call_right_serve		; right serves if bit is 1
 			cpl 	serve
 			call 	left_serve								; left serves if bit is 0	
-														; toggle bit for next round after left serve								
+
+; This loop is used as the gamplay loop when serving from the left. 
+; We will continue to loop through this loop until the end of the game.							
 move_loop2:
 			
-			call move_right									; move right after serve
-			call move_left
-			sjmp move_loop2  							
+			call move_right				; move right after serve
+			call move_left				; when return from move right, we move left
+			sjmp move_loop2  			; go back to the start of this loop						
 
+; jump to here if we are serving from the left
 call_right_serve:
-			cpl 	serve
+			cpl 	serve						; toggle bit for next round after left serve
 			call 	right_serve
-										; toggle bit for next round after left serve				
+
+; This is similar to move_loop2 except it is used when we are serving
+; from the right
 move_loop1:
-			call 	move_left									;move left after serve
-			call move_right
-			sjmp move_loop1
+			call 	move_left				;	move left after serve
+			call move_right				; when return from move_left, we move right
+			sjmp move_loop1				; jump back to the start of the loop
 			
 
-end_game:		
-			
+end_game:	
+			mov R7, #50 
 
- 
-					
-			mov R7, #50					;set for a 
+;-------------------------------------------------------
+;RIGHT_SERVE
+;
+; DESCRIPTION:
+;	Continue to loop in this subroutine after game ends. 
+; No inputs, only output to P2 and P3 to turn on and off
+; the LEDs. 
+;
+;-------------------------------------------------------
 game_over_loop:
-
+			; these flash the LEDs after the game has ended
 			mov a, p2
 			cpl a
 			mov p2, a
@@ -172,7 +183,8 @@ right_serve:
 			
 wait_r:											;wait until button has been pressed to move on
 			call	chk_btn						
-			jnb 	acc.7, wait_r
+			jnb 	acc.7, wait_r		;P2 moved to acc, P2.7 holds right button value
+														; wait for right button to be pressed
 			ret
 										 
 
@@ -196,7 +208,8 @@ left_serve:
 
 wait_l:											;wait until button has been pressed to move on
 			call	chk_btn						
-			jnb 	acc.6, wait_l
+			jnb 	acc.6, wait_l		;P2 moved to acc. Left button stored in P2.6
+														;wait for left button to serve
 			ret
 
 ;-------------------------------------------------------
@@ -219,17 +232,17 @@ move_left:
 
 	
 
-	
+; continue to move left
 continue_l:
 		call disp_led									; display the LED
 
 
 		mov 	A, pos									; move the position into R1
-		;mov 	30h, p1_window						; move the player 1 window into R2
+		;mov 	30h, p1_window					 ; move the player 1 window into R2
 
-		cjne  A, p1_window, LNOTEQUAL   
-		call 	speed_delay
-		mov 	A, buttons
+		cjne  A, p1_window, LNOTEQUAL	; check if we are out of the window
+		call 	speed_delay							
+		mov 	A, buttons							; next few lines check the btn values
 		anl	  A, #40h
 		cjne  A, #40h, move_left
 		ret
@@ -240,17 +253,12 @@ JNC LGREATER											; If position is less than the window, it isn't in the wi
 		call speed_delay
 		sjmp move_left
 LGREATER:	
-		
+		; we are in the window, so we need to check buttons
 		call 	speed_delay
 		mov		A, buttons
 		anl	  A, #40h
 		cjne  A, #40h, move_left
 		ret
-		
-
-											; If position is greater than window, then it is in the window
-	
-
 							
 ;-------------------------------------------------------
 ;MOVE RIGHT.
@@ -279,9 +287,10 @@ continue_r:
 		mov 	A, pos									; move the position into R1
 		;mov 	30h, p2_window					; move the player 1 window into R2
 
-		cjne  A, p2_window, RNOTEQUAL 			; compare pos to the window to determine if we are in the window
-		;jmp		window_right						; if they are equal, we are in the window
+		cjne  A, p2_window, RNOTEQUAL ; compare pos to the window to determine if we are in the window
+		;jmp		window_right					; if they are equal, we are in the window
 		call 	speed_delay
+		; check buttons
 		mov		A, buttons	
 		anl	  A, #80h
 		cjne  A, #80h, move_right
@@ -302,10 +311,10 @@ window_right:										; in window, check buttons
 RGREATER:
 
 		call speed_delay	
-		mov		A, buttons					; speed_delay will check the button								; move buttons into ACC
-		anl		A,#80h								; mask to get value of right button only
-		cjne	A,#80h,move_right			; check if right button was hit
-		ret								; not in window yet, so keep moving right
+		mov		A, buttons					; speed_delay will check the button	
+		anl		A,#80h							; mask to get value of right button only
+		cjne	A,#80h,move_right		; check if right button was hit
+		ret												; not in window yet, so keep moving right
 		
 		
 
@@ -336,9 +345,11 @@ speed_loop:
 
 
 ;--------------------------------------------------------
-;10 mS DELAY  still need to calculate
+;10 mS DELAY
 ;
 ; DESCRIPTION:
+; This will delay for about 10ms. It doesn't take any inputs
+; or publish any outputs. R1 and R2 are 
 ;
 ;-------------------------------------------------------
 delay:	
